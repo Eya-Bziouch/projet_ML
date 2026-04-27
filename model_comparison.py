@@ -3,21 +3,14 @@ import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 
-# ============================================
-# ACTUAL MODEL RESULTS (from main.py output)
-# ============================================
-
 models = ["KNN", "Decision Tree", "Random Forest", "AdaBoost", "RIPPER"]
 
 # Multi-class (0-4) models
 accuracy = [0.5924, 0.5163, 0.5924, 0.5978, 0.79]  # RIPPER is binary, scaled to comparable level
-precision = [0.37, 0.38, 0.35, 0.44, 0.80]  # macro averages
-recall = [0.37, 0.37, 0.36, 0.41, 0.80]     # macro averages
-f1_score = [0.37, 0.37, 0.36, 0.42, 0.79]   # macro averages
+precision = [0.37, 0.38, 0.35, 0.44, 0.80]  
+recall = [0.37, 0.37, 0.36, 0.41, 0.80]     
+f1_score = [0.37, 0.37, 0.36, 0.42, 0.79]   
 
-# ============================================
-# CREATE GROUPED BAR CHART
-# ============================================
 
 fig, ax = plt.subplots(figsize=(14, 8))
 
@@ -31,9 +24,7 @@ bars2 = ax.bar(x - 0.5*width, precision, width, label='Precision', color='#A23B7
 bars3 = ax.bar(x + 0.5*width, recall, width, label='Recall', color='#F18F01', alpha=0.9)
 bars4 = ax.bar(x + 1.5*width, f1_score, width, label='F1-Score', color='#C73E1D', alpha=0.9)
 
-# ============================================
-# CUSTOMIZE CHART
-# ============================================
+
 
 # Labels and title
 ax.set_xlabel('Models', fontsize=13, fontweight='bold')
@@ -83,9 +74,7 @@ for i, (model, annotation) in enumerate(zip(models, annotations)):
 plt.tight_layout()
 plt.subplots_adjust(bottom=0.12)
 
-# ============================================
-# SAVE AS HIGH-QUALITY PNG
-# ============================================
+
 
 output_file = "model_comparison.png"
 plt.savefig(output_file, dpi=300, bbox_inches='tight', facecolor='white', edgecolor='none')
@@ -94,9 +83,7 @@ print(f"📊 Resolution: 300 DPI | Quality: High-resolution PNG")
 
 plt.close()
 
-# ============================================
-# SUMMARY STATISTICS
-# ============================================
+
 
 print("\n" + "="*60)
 print("MODEL PERFORMANCE SUMMARY")

@@ -195,10 +195,8 @@ print("Training AdaBoost model with Decision Tree base estimator...")
 from sklearn.ensemble import AdaBoostClassifier
 from sklearn.metrics import accuracy_score, confusion_matrix, ConfusionMatrixDisplay
 print("Training AdaBoost model...")
-# -----------------------------
 # 1. Train AdaBoost model
-# -----------------------------
-# FIX 🔴 Bug 3: removed algorithm parameter (not supported in this scikit-learn version)
+
 ada = AdaBoostClassifier(
     n_estimators=100,
     random_state=42
@@ -206,20 +204,12 @@ ada = AdaBoostClassifier(
 
 ada.fit(X_train, y_train)
 
-# -----------------------------
-# 2. Predictions
-# -----------------------------
 y_pred_ada = ada.predict(X_test)
 
-# -----------------------------
-# 3. Accuracy
-# -----------------------------
 acc = accuracy_score(y_test, y_pred_ada)
 print("AdaBoost Accuracy:", acc)
 
-# -----------------------------
-# 4. Confusion Matrix Visualization
-# -----------------------------
+
 """
 cm = confusion_matrix(y_test, y_pred_ada)
 
@@ -349,9 +339,6 @@ model.fit(X_train, y_train)
 
 print("Model training completed successfully!")
 
-# =========================================================
-# 📊 VISUALIZATION: Feature Importance (IMPORTANT PART)
-# =========================================================
 
 # Get feature importance
 importances = model.feature_importances_
@@ -383,3 +370,141 @@ plt.savefig("feature_importance.png")
 
 # Close plot
 plt.close()
+
+# PART II : Multilabel Classification
+
+print("\n" + "="*70)
+print("PART II: Multilabel Classification")
+print("="*70)
+
+
+#  the multilabel Y matrix
+
+print("\n=== STEP A: Building Multilabel Y Matrix ===\n")
+
+# Create binary columns for each disease severity level
+y_train_level1 = (y_train >= 1).astype(int)
+y_train_level2 = (y_train >= 2).astype(int)
+y_train_level3 = (y_train >= 3).astype(int)
+y_train_level4 = (y_train >= 4).astype(int)
+
+y_test_level1 = (y_test >= 1).astype(int)
+y_test_level2 = (y_test >= 2).astype(int)
+y_test_level3 = (y_test >= 3).astype(int)
+y_test_level4 = (y_test >= 4).astype(int)
+
+# Stack into multilabel matrices
+Y_train = np.column_stack([y_train_level1, y_train_level2, y_train_level3, y_train_level4])
+Y_test = np.column_stack([y_test_level1, y_test_level2, y_test_level3, y_test_level4])
+
+print(f"Y_train shape: {Y_train.shape}")
+print(f"Y_test shape: {Y_test.shape}")
+print(f"\nFirst 5 rows of Y_train (each row shows presence of levels 1-4):")
+print(Y_train[:5])
+
+# STEP B: Train MultiOutputClassifier
+
+print("\n=== STEP B: Training MultiOutputClassifier ===\n")
+
+from sklearn.multioutput import MultiOutputClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score
+
+# Create and train MultiOutputClassifier with Random Forest base estimator
+base_rf = RandomForestClassifier(n_estimators=100, random_state=42)
+multi_classifier = MultiOutputClassifier(base_rf)
+multi_classifier.fit(X_train, Y_train)
+
+# Make predictions
+Y_pred_multi = multi_classifier.predict(X_test)
+
+print(f"Predictions shape: {Y_pred_multi.shape}")
+
+# Calculate and print accuracy per label
+label_names = ['has_level1', 'has_level2', 'has_level3', 'has_level4']
+print("\nAccuracy per label (MultiOutputClassifier):")
+for i, label in enumerate(label_names):
+    acc = accuracy_score(Y_test[:, i], Y_pred_multi[:, i])
+    print(f"  {label}: {acc:.4f}")
+
+#train classifier chain
+print("\n=== STEP C: Training ClassifierChain ===\n")
+
+from sklearn.multioutput import ClassifierChain
+
+# Create and train ClassifierChain with Random Forest base estimator
+chain_rf = RandomForestClassifier(n_estimators=100, random_state=42)
+chain_classifier = ClassifierChain(chain_rf, order=[0, 1, 2, 3], random_state=42)
+chain_classifier.fit(X_train, Y_train)
+
+# Make predictions
+Y_pred_chain = chain_classifier.predict(X_test)
+
+print(f"Predictions shape: {Y_pred_chain.shape}")
+print("ClassifierChain trained successfully (captures label dependencies)")
+
+#evaluate multilabel models
+print("\n=== STEP D: Evaluating Multilabel Models ===\n")
+
+from sklearn.metrics import multilabel_confusion_matrix, hamming_loss, classification_report
+
+# --- MultiOutputClassifier Evaluation ---
+print("--- MultiOutputClassifier Evaluation ---\n")
+
+mlcm_multi = multilabel_confusion_matrix(Y_test, Y_pred_multi)
+hamming_multi = hamming_loss(Y_test, Y_pred_multi)
+
+print("Multilabel Confusion Matrices:")
+for i, cm in enumerate(mlcm_multi):
+    print(f"\nLabel '{label_names[i]}':")
+    print(cm)
+
+print(f"\nHamming Loss (MultiOutputClassifier): {hamming_multi:.4f}")
+print("  (Fraction of incorrect labels across all samples)")
+
+# --- ClassifierChain Evaluation ---
+print("\n--- ClassifierChain Evaluation ---\n")
+
+mlcm_chain = multilabel_confusion_matrix(Y_test, Y_pred_chain)
+hamming_chain = hamming_loss(Y_test, Y_pred_chain)
+
+print(f"Hamming Loss (ClassifierChain): {hamming_chain:.4f}")
+
+# --- Classification Report per Label ---
+print("\n--- Classification Report per Label (MultiOutputClassifier) ---\n")
+
+for i, label in enumerate(label_names):
+    print(f"\n{label}:")
+    print(classification_report(Y_test[:, i], Y_pred_multi[:, i], 
+                                target_names=['Negative', 'Positive'], 
+                                zero_division=0))
+
+# --- Save Multilabel Confusion Matrix Heatmap ---
+print("\n--- Saving Multilabel Confusion Matrix Heatmap ---\n")
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+fig, axes = plt.subplots(2, 2, figsize=(12, 10))
+axes = axes.ravel()
+
+for i, label in enumerate(label_names):
+    cm = mlcm_multi[i]
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', ax=axes[i],
+                xticklabels=['Negative', 'Positive'],
+                yticklabels=['Negative', 'Positive'],
+                cbar_kws={'label': 'Count'})
+    axes[i].set_title(f'{label.replace("_", " ").title()}')
+    axes[i].set_ylabel('True Label')
+    axes[i].set_xlabel('Predicted Label')
+
+plt.suptitle('Multilabel Confusion Matrices (MultiOutputClassifier)', fontsize=14, y=1.00)
+plt.tight_layout()
+plt.savefig('multilabel_confusion_matrix.png', dpi=150, bbox_inches='tight')
+plt.close()
+
+print("Multilabel confusion matrix heatmap saved as 'multilabel_confusion_matrix.png'")
+print("\n" + "="*70)
+print("PART II: Multilabel Classification Complete")
+print("="*70)
+
